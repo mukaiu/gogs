@@ -1,7 +1,3 @@
-// Copyright 2014 The Gogs Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package user
 
 import (
@@ -13,7 +9,7 @@ import (
 	"image/png"
 	"io"
 
-	"github.com/pkg/errors"
+	"github.com/cockroachdb/errors"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"gopkg.in/macaron.v1"
@@ -150,13 +146,13 @@ func UpdateAvatarSetting(c *context.Context, f form.Avatar, ctxUser *database.Us
 	if f.Avatar != nil && f.Avatar.Filename != "" {
 		r, err := f.Avatar.Open()
 		if err != nil {
-			return fmt.Errorf("open avatar reader: %v", err)
+			return errors.Newf("open avatar reader: %v", err)
 		}
 		defer func() { _ = r.Close() }()
 
 		data, err := io.ReadAll(r)
 		if err != nil {
-			return fmt.Errorf("read avatar content: %v", err)
+			return errors.Newf("read avatar content: %v", err)
 		}
 		if !tool.IsImageFile(data) {
 			return errors.New(c.Tr("settings.uploaded_avatar_not_a_image"))

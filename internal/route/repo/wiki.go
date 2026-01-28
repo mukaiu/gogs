@@ -1,7 +1,3 @@
-// Copyright 2015 The Gogs Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package repo
 
 import (
@@ -43,12 +39,13 @@ type PageMeta struct {
 }
 
 func renderWikiPage(c *context.Context, isViewPage bool) (*git.Repository, string) {
-	wikiRepo, err := git.Open(c.Repo.Repository.WikiPath())
+	wikiPath := c.Repo.Repository.WikiPath()
+	wikiRepo, err := git.Open(wikiPath)
 	if err != nil {
 		c.Error(err, "open repository")
 		return nil, ""
 	}
-	commit, err := wikiRepo.BranchCommit("master")
+	commit, err := wikiRepo.BranchCommit(database.WikiBranch(wikiPath))
 	if err != nil {
 		c.Error(err, "get branch commit")
 		return nil, ""
@@ -124,7 +121,8 @@ func Wiki(c *context.Context) {
 	}
 
 	// Get last change information.
-	commits, err := wikiRepo.Log(git.RefsHeads+"master", git.LogOptions{Path: pageName + ".md"})
+	branch := database.WikiBranch(c.Repo.Repository.WikiPath())
+	commits, err := wikiRepo.Log(git.RefsHeads+branch, git.LogOptions{Path: pageName + ".md"})
 	if err != nil {
 		c.Error(err, "get commits by path")
 		return
@@ -143,12 +141,15 @@ func WikiPages(c *context.Context) {
 		return
 	}
 
-	wikiRepo, err := git.Open(c.Repo.Repository.WikiPath())
+	wikiPath := c.Repo.Repository.WikiPath()
+	wikiRepo, err := git.Open(wikiPath)
 	if err != nil {
 		c.Error(err, "open repository")
 		return
 	}
-	commit, err := wikiRepo.BranchCommit("master")
+
+	branch := database.WikiBranch(wikiPath)
+	commit, err := wikiRepo.BranchCommit(branch)
 	if err != nil {
 		c.Error(err, "get branch commit")
 		return
@@ -162,7 +163,7 @@ func WikiPages(c *context.Context) {
 	pages := make([]PageMeta, 0, len(entries))
 	for i := range entries {
 		if entries[i].Type() == git.ObjectBlob && strings.HasSuffix(entries[i].Name(), ".md") {
-			commits, err := wikiRepo.Log(git.RefsHeads+"master", git.LogOptions{Path: entries[i].Name()})
+			commits, err := wikiRepo.Log(git.RefsHeads+branch, git.LogOptions{Path: entries[i].Name()})
 			if err != nil {
 				c.Error(err, "get commits by path")
 				return

@@ -1,7 +1,3 @@
-// Copyright 2014 The Gogs Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package repo
 
 import (
@@ -10,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gogs/git-module"
 	"github.com/unknwon/com"
 	log "unknwon.dev/clog/v2"
@@ -17,7 +14,6 @@ import (
 	"gogs.io/gogs/internal/conf"
 	"gogs.io/gogs/internal/context"
 	"gogs.io/gogs/internal/database"
-	"gogs.io/gogs/internal/database/errors"
 	"gogs.io/gogs/internal/email"
 	"gogs.io/gogs/internal/form"
 	"gogs.io/gogs/internal/osutil"
@@ -331,19 +327,19 @@ func UpdateAvatarSetting(c *context.Context, f form.Avatar, ctxRepo *database.Re
 	if f.Avatar != nil {
 		r, err := f.Avatar.Open()
 		if err != nil {
-			return fmt.Errorf("open avatar reader: %v", err)
+			return errors.Newf("open avatar reader: %v", err)
 		}
 		defer r.Close()
 
 		data, err := io.ReadAll(r)
 		if err != nil {
-			return fmt.Errorf("read avatar content: %v", err)
+			return errors.Newf("read avatar content: %v", err)
 		}
 		if !tool.IsImageFile(data) {
 			return errors.New(c.Tr("settings.uploaded_avatar_not_a_image"))
 		}
 		if err = ctxRepo.UploadAvatar(data); err != nil {
-			return fmt.Errorf("upload avatar: %v", err)
+			return errors.Newf("upload avatar: %v", err)
 		}
 	} else {
 		// No avatar is uploaded and reset setting back.
@@ -353,7 +349,7 @@ func UpdateAvatarSetting(c *context.Context, f form.Avatar, ctxRepo *database.Re
 	}
 
 	if err := database.UpdateRepository(ctxRepo, false); err != nil {
-		return fmt.Errorf("update repository: %v", err)
+		return errors.Newf("update repository: %v", err)
 	}
 
 	return nil
@@ -582,13 +578,27 @@ func SettingsGitHooks(c *context.Context) {
 	c.Success(tmplRepoSettingsGithooks)
 }
 
+func isValidHookName(name git.HookName) bool {
+	for _, h := range git.ServerSideHooks {
+		if h == name {
+			return true
+		}
+	}
+	return false
+}
+
 func SettingsGitHooksEdit(c *context.Context) {
 	c.Data["Title"] = c.Tr("repo.settings.githooks")
 	c.Data["PageIsSettingsGitHooks"] = true
 	c.Data["RequireSimpleMDE"] = true
 
-	name := c.Params(":name")
-	hook, err := c.Repo.GitRepo.Hook("custom_hooks", git.HookName(name))
+	name := git.HookName(c.Params(":name"))
+	if !isValidHookName(name) {
+		c.NotFound()
+		return
+	}
+
+	hook, err := c.Repo.GitRepo.Hook("custom_hooks", name)
 	if err != nil {
 		c.NotFoundOrError(osutil.NewError(err), "get hook")
 		return
@@ -598,8 +608,13 @@ func SettingsGitHooksEdit(c *context.Context) {
 }
 
 func SettingsGitHooksEditPost(c *context.Context) {
-	name := c.Params(":name")
-	hook, err := c.Repo.GitRepo.Hook("custom_hooks", git.HookName(name))
+	name := git.HookName(c.Params(":name"))
+	if !isValidHookName(name) {
+		c.NotFound()
+		return
+	}
+
+	hook, err := c.Repo.GitRepo.Hook("custom_hooks", name)
 	if err != nil {
 		c.NotFoundOrError(osutil.NewError(err), "get hook")
 		return

@@ -1,7 +1,3 @@
-// Copyright 2014 The Gogs Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package cmd
 
 import (
@@ -751,7 +747,7 @@ func runWeb(c *cli.Context) error {
 		err = fcgi.Serve(nil, m)
 
 	case "unix":
-		if osutil.IsExist(listenAddr) {
+		if osutil.Exist(listenAddr) {
 			err = os.Remove(listenAddr)
 			if err != nil {
 				log.Fatal("Failed to remove existing Unix domain socket: %v", err)

@@ -1,7 +1,3 @@
-// Copyright 2016 The Gogs Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package repo
 
 import (
@@ -10,12 +6,12 @@ import (
 	"path"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	log "unknwon.dev/clog/v2"
 
 	"gogs.io/gogs/internal/conf"
 	"gogs.io/gogs/internal/context"
 	"gogs.io/gogs/internal/database"
-	"gogs.io/gogs/internal/database/errors"
 	"gogs.io/gogs/internal/form"
 	"gogs.io/gogs/internal/gitutil"
 	"gogs.io/gogs/internal/pathutil"
@@ -29,6 +25,8 @@ const (
 	tmplEditorDelete      = "repo/editor/delete"
 	tmplEditorUpload      = "repo/editor/upload"
 )
+
+var errInternalServerError = errors.New("internal server error")
 
 // getParentTreeFields returns list of parent tree names and corresponding tree paths
 // based on given tree path.
@@ -282,7 +280,7 @@ func editFilePost(c *context.Context, f form.EditRepoFile, isNewFile bool) {
 	}); err != nil {
 		log.Error("Failed to update repo file: %v", err)
 		c.FormErr("TreePath")
-		c.RenderWithErr(c.Tr("repo.editor.fail_to_update_file", f.TreePath, errors.ErrInternalServerError), tmplEditorEdit, &f)
+		c.RenderWithErr(c.Tr("repo.editor.fail_to_update_file", f.TreePath, errInternalServerError), tmplEditorEdit, &f)
 		return
 	}
 
@@ -390,7 +388,7 @@ func DeleteFilePost(c *context.Context, f form.DeleteRepoFile) {
 		Message:      message,
 	}); err != nil {
 		log.Error("Failed to delete repo file: %v", err)
-		c.RenderWithErr(c.Tr("repo.editor.fail_to_delete_file", c.Repo.TreePath, errors.ErrInternalServerError), tmplEditorDelete, &f)
+		c.RenderWithErr(c.Tr("repo.editor.fail_to_delete_file", c.Repo.TreePath, errInternalServerError), tmplEditorDelete, &f)
 		return
 	}
 
@@ -512,7 +510,7 @@ func UploadFilePost(c *context.Context, f form.UploadRepoFile) {
 	}); err != nil {
 		log.Error("Failed to upload files: %v", err)
 		c.FormErr("TreePath")
-		c.RenderWithErr(c.Tr("repo.editor.unable_to_upload_files", f.TreePath, errors.ErrInternalServerError), tmplEditorUpload, &f)
+		c.RenderWithErr(c.Tr("repo.editor.unable_to_upload_files", f.TreePath, errInternalServerError), tmplEditorUpload, &f)
 		return
 	}
 

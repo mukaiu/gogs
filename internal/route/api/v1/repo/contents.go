@@ -1,7 +1,3 @@
-// Copyright 2020 The Gogs Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package repo
 
 import (
@@ -10,8 +6,8 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gogs/git-module"
-	"github.com/pkg/errors"
 
 	"gogs.io/gogs/internal/context"
 	"gogs.io/gogs/internal/database"

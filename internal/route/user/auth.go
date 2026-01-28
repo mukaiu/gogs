@@ -1,16 +1,12 @@
-// Copyright 2014 The Gogs Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package user
 
 import (
 	gocontext "context"
 	"encoding/hex"
-	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/cockroachdb/errors"
 	"github.com/go-macaron/captcha"
 	"github.com/unknwon/com"
 	log "unknwon.dev/clog/v2"
@@ -22,6 +18,7 @@ import (
 	"gogs.io/gogs/internal/email"
 	"gogs.io/gogs/internal/form"
 	"gogs.io/gogs/internal/tool"
+	"gogs.io/gogs/internal/urlutil"
 	"gogs.io/gogs/internal/userutil"
 )
 
@@ -59,7 +56,7 @@ func AutoLogin(c *context.Context) (bool, error) {
 	u, err := database.Handle.Users().GetByUsername(c.Req.Context(), uname)
 	if err != nil {
 		if !database.IsErrUserNotExist(err) {
-			return false, fmt.Errorf("get user by name: %v", err)
+			return false, errors.Newf("get user by name: %v", err)
 		}
 		return false, nil
 	}
@@ -96,7 +93,7 @@ func Login(c *context.Context) {
 	}
 
 	if isSucceed {
-		if tool.IsSameSiteURLPath(redirectTo) {
+		if urlutil.IsSameSite(redirectTo) {
 			c.Redirect(redirectTo)
 		} else {
 			c.RedirectSubpath("/")
@@ -142,7 +139,7 @@ func afterLogin(c *context.Context, u *database.User, remember bool) {
 
 	redirectTo, _ := url.QueryUnescape(c.GetCookie("redirect_to"))
 	c.SetCookie("redirect_to", "", -1, conf.Server.Subpath)
-	if tool.IsSameSiteURLPath(redirectTo) {
+	if urlutil.IsSameSite(redirectTo) {
 		c.Redirect(redirectTo)
 		return
 	}
@@ -267,7 +264,7 @@ func LoginTwoFactorRecoveryCodePost(c *context.Context) {
 		return
 	}
 
-	if err := database.UseRecoveryCode(userID, c.Query("recovery_code")); err != nil {
+	if err := database.Handle.TwoFactors().UseRecoveryCode(c.Req.Context(), userID, c.Query("recovery_code")); err != nil {
 		if database.IsTwoFactorRecoveryCodeNotFound(err) {
 			c.Flash.Error(c.Tr("auth.login_two_factor_invalid_recovery_code"))
 			c.RedirectSubpath("/user/login/two_factor_recovery_code")
@@ -291,6 +288,10 @@ func SignOut(c *context.Context) {
 	c.SetCookie(conf.Security.CookieUsername, "", -1, conf.Server.Subpath)
 	c.SetCookie(conf.Security.CookieRememberName, "", -1, conf.Server.Subpath)
 	c.SetCookie(conf.Session.CSRFCookieName, "", -1, conf.Server.Subpath)
+	if conf.Auth.CustomLogoutURL != "" {
+		c.Redirect(conf.Auth.CustomLogoutURL)
+		return
+	}
 	c.RedirectSubpath("/")
 }
 
